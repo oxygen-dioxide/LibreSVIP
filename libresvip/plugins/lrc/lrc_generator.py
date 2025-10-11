@@ -1,5 +1,6 @@
 import dataclasses
 import datetime
+import itertools
 
 from libresvip.core.time_sync import TimeSynchronizer
 from libresvip.model.base import Project, SingingTrack
@@ -17,6 +18,11 @@ from .model import (
 )
 from .options import OffsetPolicyOption, OutputOptions, SplitOption
 
+# \u4e00-\u9fff: Hanzi or Kanji
+# \u3040-\u309f: Hiragana
+# \u30a0-\u30ff: Katakana
+# \uac00-\ud7af: Hangul Syllables
+CJK_PATTERN: re.Pattern[str] = re.compile(r'[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]')
 
 @dataclasses.dataclass
 class LrcGenerator:
@@ -91,12 +97,17 @@ class LrcGenerator:
         self, lyric_lines: list[LyricLine], buffer: list[tuple[int, str]]
     ) -> None:
         start_time = self.get_time_from_ticks(buffer[0][0])
-        lyrics = ""
-        for _, lyric in buffer:
-            if self.lyric_included(lyric):
-                lyrics += SYMBOL_PATTERN.sub("", lyric) + (
-                    " " if LATIN_ALPHABET.search(lyric) is not None else ""
-                )
+        lyrics = SYMBOL_PATTERN.sub("", buffer[0][1])
+        
+        for(prev_str, curr_str) in itertools.pairwise(x[1] for x in buffer):
+            prev_tail = prev_str[-1] if prev_str else ""
+            curr_head = curr_str[0] if curr_str else ""
+            if(CJK_PATTERN.match(prev_tail) and CJK_PATTERN.match(curr_head)):
+                sep = ""
+            else:
+                sep = " "
+            lyrics += sep + SYMBOL_PATTERN.sub("", curr_str)
+        
         lyric_lines.append(
             LyricLine(
                 time_tags=[
