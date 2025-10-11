@@ -1,6 +1,7 @@
 import dataclasses
 import datetime
 import itertools
+import re
 
 from libresvip.core.time_sync import TimeSynchronizer
 from libresvip.model.base import Project, SingingTrack
